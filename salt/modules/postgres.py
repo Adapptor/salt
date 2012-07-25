@@ -55,7 +55,23 @@ Database related actions
 '''
 
 
-def db_list(user=None, host=None, port=None):
+def _build_psql_command(cmd, user=None, host=None, port=None, sudo_user=None):
+    '''
+    Return a psql command with the specified parameters.
+    '''
+    cmd = 'psql %s' % cmd
+    if user:
+        cmd += ' -U %s' % user
+    if host:
+        cmd += ' -h %s' % host
+    if port:
+        cmd += ' -p %s' % str(port)
+    if sudo_user:
+        cmd = 'sudo -u %s ' + cmd
+    return cmd
+
+
+def db_list(user=None, host=None, port=None, sudo_user=None):
     '''
     Return a list of databases of a Postgres server using the output
     from the ``psql -l`` query.
@@ -70,10 +86,11 @@ def db_list(user=None, host=None, port=None):
         host = __opts__.get('postgres.host') or __pillar__.get('postgres.host')
     if not port:
         port = __opts__.get('postgres.port') or __pillar__.get('postgres.port')
+    if not sudo_user:
+        sudo_user = __opts__.get('postgres.sudo_user') or __pillar__.get('postgres.sudo_user')
 
     ret = []
-    cmd = "psql -l -h {host} -U {user} -p {port}".format(
-            host=host, user=user, port=port)
+    cmd = _build_psql_command('-', user=user, host=host, port=port, sudo_user=sudo_user)
 
     lines = [x for x in __salt__['cmd.run'](cmd).split("\n") if len(x.split("|")) == 6]
     header = [x.strip() for x in lines[0].split("|")]
@@ -197,7 +214,8 @@ def user_create(username,
                 createdb=False,
                 createuser=False,
                 encrypted=False,
-                password=None):
+                password=None,
+                sudo_user=None):
     '''
     Creates a Postgres user.
 
@@ -211,6 +229,8 @@ def user_create(username,
         host = __opts__.get('postgres.host') or __pillar__.get('postgres.host')
     if not port:
         port = __opts__.get('postgres.port') or __pillar__.get('postgres.port')
+    if not sudo_user:
+        sudo_user = __opts__.get('postgres.sudo_user') or __pillar__.get('postgres.sudo_user')
 
     sub_cmd = "CREATE USER {0} WITH".format(username, )
     if password:
@@ -225,9 +245,5 @@ def user_create(username,
     if sub_cmd.endswith("WITH"):
         sub_cmd = sub_cmd.replace(" WITH", "")
 
-    cmd = 'psql -h {host} -U {user} -p {port} -c "{sub_cmd}"'.format(
-        host=host, user=user, port=port, sub_cmd=sub_cmd)
+    cmd = _build_psql_command('-c "%s"' % sub_cmd, user=user, host=host, port=port, sudo_user=sudo_user)
     return __salt__['cmd.run'](cmd)
-
-
-
