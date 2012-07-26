@@ -34,6 +34,7 @@ import sys
 import glob
 import time
 import getpass
+import fnmatch
 
 # Import zmq modules
 import zmq
@@ -158,6 +159,86 @@ class LocalClient(object):
     def _check_grain_minions(self, expr):
         '''
         Return the minions found by looking via a list
+        '''
+        minions = set(os.listdir(os.path.join(self.opts['pki_dir'], 'minions')))
+        if self.opts.get('minion_data_cache', False):
+            cdir = os.path.join(self.opts['cachedir'], 'minions')
+            if not os.path.isdir(cdir):
+                return list(minions)
+            for id_ in os.listdir(cdir):
+                if not id_ in minions:
+                    continue
+                datap = os.path.join(cdir, id_, 'data.p')
+                if not os.path.isfile(datap):
+                    continue
+                grains = self.serial.load(open(datap)).get('grains')
+                comps = expr.split(':')
+                if len(comps) < 2:
+                    continue
+                if comps[0] not in grains:
+                    minions.remove(id_)
+                if isinstance(grains[comps[0]], list):
+                    # We are matching a single component to a single list member
+                    found = False
+                    for member in grains[comps[0]]:
+                        if fnmatch.fnmatch(str(member).lower(), comps[1].lower()):
+                            found = True
+                    if found:
+                        continue
+                    minions.remove(id_)
+                    continue
+                if fnmatch.fnmatch(
+                    str(grains[comps[0]]).lower(),
+                    comps[1].lower(),
+                    ):
+                    continue
+                else:
+                    minions.remove(id_)
+        return list(minions)
+
+    def _check_grain_pcre_minions(self, expr):
+        '''
+        Return the minions found by looking via a list
+        '''
+        minions = set(os.listdir(os.path.join(self.opts['pki_dir'], 'minions')))
+        if self.opts.get('minion_data_cache', False):
+            cdir = os.path.join(self.opts['cachedir'], 'minions')
+            if not os.path.isdir(cdir):
+                return list(minions)
+            for id_ in os.listdir(cdir):
+                if not id_ in minions:
+                    continue
+                datap = os.path.join(cdir, id_, 'data.p')
+                if not os.path.isfile(datap):
+                    continue
+                grains = self.serial.load(open(datap)).get('grains')
+                comps = expr.split(':')
+                if len(comps) < 2:
+                    continue
+                if comps[0] not in grains:
+                    minions.remove(id_)
+                if isinstance(grains[comps[0]], list):
+                    # We are matching a single component to a single list member
+                    found = False
+                    for member in grains[comps[0]]:
+                        if re.match(comps[1].lower(), str(member).lower()):
+                            found = True
+                    if found:
+                        continue
+                    minions.remove(id_)
+                    continue
+                if re.match(
+                    comps[1].lower(),
+                    str(grains[comps[0]]).lower()
+                    ):
+                    continue
+                else:
+                    minions.remove(id_)
+        return list(minions)
+
+    def _all_minions(self, expr=None):
+        '''
+        Return a list of all minions that have auth'd
         '''
         return os.listdir(os.path.join(self.opts['pki_dir'], 'minions'))
 
@@ -771,10 +852,10 @@ class LocalClient(object):
                 'pcre': self._check_pcre_minions,
                 'list': self._check_list_minions,
                 'grain': self._check_grain_minions,
-                'grain_pcre': self._check_grain_minions,
-                'exsel': self._check_grain_minions,
-                'pillar': self._check_grain_minions,
-                'compound': self._check_grain_minions,
+                'grain_pcre': self._check_grain_pcre_minions,
+                'exsel': self._all_minions,
+                'pillar': self._all_minions,
+                'compound': self._all_minions,
                 }[expr_form](expr)
 
     def pub(self, tgt, fun, arg=(), expr_form='glob',

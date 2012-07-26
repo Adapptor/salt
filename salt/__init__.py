@@ -6,12 +6,12 @@ from salt.version import __version__
 # Import python libs
 import os
 import sys
-import optparse
 
 # Import salt libs, the try block bypasses an issue at build time so that c
 # modules don't cause the build to fail
 try:
     import salt.config
+    from salt.utils import parser as optparse
     from salt.utils.process import set_pidfile
     from salt.utils.verify import check_user, verify_env, verify_socket
 except ImportError as e:
@@ -62,7 +62,7 @@ class Master(object):
                 choices=list(salt.log.LOG_LEVELS),
                 help='Console log level. One of %s. For the logfile settings '
                      'see the config file. Default: \'warning\'.' %
-                     ', '.join([repr(l) for l in salt.log.LOG_LEVELS]))
+                     ', '.join([repr(l) for l in salt.log.SORTED_LEVEL_NAMES]))
 
         options, args = parser.parse_args()
 
@@ -98,7 +98,8 @@ class Master(object):
                 os.path.join(self.opts['cachedir'], 'jobs'),
                 os.path.dirname(self.opts['log_file']),
                 self.opts['sock_dir'],
-            ], self.opts['user'])
+            ], self.opts['user'],
+            permissive=self.opts['permissive_pki_access'])
         except OSError, err:
             sys.exit(err.errno)
 
@@ -179,7 +180,7 @@ class Minion(object):
                 choices=list(salt.log.LOG_LEVELS),
                 help='Console log level. One of %s. For the logfile settings '
                      'see the config file. Default: \'warning\'.' %
-                     ', '.join([repr(l) for l in salt.log.LOG_LEVELS]))
+                     ', '.join([repr(l) for l in salt.log.SORTED_LEVEL_NAMES]))
 
         options, args = parser.parse_args()
 
@@ -212,7 +213,8 @@ class Minion(object):
                 self.opts['sock_dir'],
                 self.opts['extension_modules'],
                 os.path.dirname(self.opts['log_file']),
-            ], self.opts['user'])
+            ], self.opts['user'],
+            permissive=self.opts['permissive_pki_access'])
         except OSError, err:
             sys.exit(err.errno)
 
@@ -347,7 +349,8 @@ class Syndic(object):
             verify_env([
                 self.opts['pki_dir'], self.opts['cachedir'],
                 os.path.dirname(self.opts['log_file']),
-            ], self.opts['user'])
+            ], self.opts['user'],
+            permissive=self.opts['permissive_pki_access'])
         except OSError, err:
             sys.exit(err.errno)
         import salt.log

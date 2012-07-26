@@ -3,7 +3,6 @@ The management of salt command line utilities are stored in here
 '''
 
 # Import python libs
-import optparse
 import os
 import sys
 
@@ -16,6 +15,7 @@ import salt.client
 import salt.output
 import salt.runner
 
+from salt.utils import parser as optparse
 from salt.utils.verify import verify_env
 from salt import __version__ as VERSION
 from salt.exceptions import SaltInvocationError, SaltClientError, \
@@ -157,7 +157,7 @@ class SaltCMD(object):
                 help=('This option is deprecated and will be removed in a '
                       'future release, please use salt-run jobs instead\n'
                       'Execute a salt command query, this can be used to find '
-                      'the results os a previous function call: -Q test.echo'))
+                      'the results of a previous function call: -Q test.echo'))
         parser.add_option('-c',
                 '--config',
                 default='/etc/salt/master',
@@ -586,6 +586,14 @@ class SaltKey(object):
                 action='store_true',
                 help='Supress output')
 
+        parser.add_option('-y',
+                '--yes',
+                dest='yes',
+                default=False,
+                action='store_true',
+                help='Answer Yes to all questions presented, defaults to False'
+                )
+
         parser.add_option('--key-logfile',
                 dest='key_logfile',
                 help=('Send all output to a file. '
@@ -651,7 +659,7 @@ class SaltKey(object):
         for k, v in options.__dict__.items():
             if k == 'keysize':
                 if v < 2048:
-                    opts[k] = 2048 
+                    opts[k] = 2048
                 else:
                     opts[k] = v
             elif v is not None:
@@ -671,7 +679,8 @@ class SaltKey(object):
             os.path.join(self.opts['pki_dir'], 'minions_rejected'),
             os.path.dirname(self.opts['log_file']),
             ],
-            self.opts['user'])
+            self.opts['user'],
+            permissive=self.opts['permissive_pki_access'])
         import salt.log
         salt.log.setup_logfile_logger(self.opts['key_logfile'],
                                       self.opts['loglevel'])
@@ -779,7 +788,8 @@ class SaltCall(object):
                     opts['cachedir'],
                     os.path.dirname(opts['log_file']),
                     ],
-                    opts['user'])
+                    opts['user'],
+                    permissive=opts['permissive_pki_access'])
 
         return opts
 
@@ -789,7 +799,9 @@ class SaltCall(object):
         '''
         import salt.log
         salt.log.setup_console_logger(
-            self.opts['log_level']
+            self.opts['log_level'],
+            log_format=self.opts['log_fmt_console'],
+            date_format=self.opts['log_datefmt'],
         )
         caller = salt.cli.caller.Caller(self.opts)
         caller.run()
