@@ -23,6 +23,7 @@ from salt.exceptions import CommandNotFoundError
 log = logging.getLogger(__name__)
 __opts__ = {}
 
+
 def __virtual__():
     '''
     Only load this module if the psql bin exists
@@ -155,7 +156,7 @@ def db_create(name,
         log.info("DB '{0}' already exists".format(name,))
         return False
 
-    cmd_part =  -h %s' % name
+    cmd_part = ' -h %s' % name
 
     if tablespace:
         cmd_part = "-D {0} {1}".format(tablespace, cmd_part)
@@ -182,7 +183,7 @@ def db_create(name,
             log.info("template '{0}' does not exist.".format(template, ))
             return False
 
-    cmd = _buildl_command('createdb ' + cmd_part, user, host, port, sudo_user)
+    cmd = _build_command('createdb ' + cmd_part, user, host, port, sudo_user)
 
     __salt__['cmd.run'](cmd)
 
