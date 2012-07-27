@@ -80,7 +80,7 @@ def _build_command(cmd, user=None, host=None, port=None, sudo_user=None):
         cmd += ' -p %s' % str(port)
     cmd += ' -w'
     if sudo_user:
-        cmd = 'sudo -u %s ' + cmd
+        cmd = 'sudo -u %s %s ' % (sudo_user, cmd)
     return cmd
 
 
