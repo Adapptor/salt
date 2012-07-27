@@ -50,6 +50,16 @@ def version():
     return "%s %s" % (name, ver)
 
 
+def _check_output_for_error(output):
+    '''
+    Check the output of a PostgreSQL command line utility for an error
+    string, and if an error is detected return a description, otherwise
+    return None.
+    '''
+    if 'FATAL:' in output:
+        raise Exception('Error running command: ' + output)
+
+
 def _connection_defaults(user=None, host=None, port=None, sudo_user=None):
     '''
     Returns a tuple of (user, host, port) with config, pillar, or default
@@ -99,8 +109,10 @@ def db_list(user=None, host=None, port=None, sudo_user=None):
         salt '*' postgres.db_list
     '''
     cmd = _build_command('psql -l')
+    output = __salt__['cmd.run'](cmd)
+    _check_output_for_error(output)
     ret = []
-    lines = [x for x in __salt__['cmd.run'](cmd).split("\n") if len(x.split("|")) == 6]
+    lines = [x for x in output.split("\n") if len(x.split("|")) == 6]
     header = [x.strip() for x in lines[0].split("|")]
     for line in lines[1:]:
         line = [x.strip() for x in line.split("|")]
@@ -185,7 +197,8 @@ def db_create(name,
 
     cmd = _build_command('createdb ' + cmd_part, user, host, port, sudo_user)
 
-    __salt__['cmd.run'](cmd)
+    output = __salt__['cmd.run'](cmd)
+    _check_output_for_error(output)
 
     if db_exists(name, user, host, port, sudo_user):
         return True
@@ -210,7 +223,9 @@ def db_remove(name, user=None, host=None, port=None, sudo_user=None):
     # db doesnt exist, proceed
     cmd = _build_command('dropdb {name}'.format(name=name), user, host, port, sudo_user)
 
-    __salt__['cmd.run'](cmd)
+    output = __salt__['cmd.run'](cmd)
+    _check_output_for_error(output)
+
     if not db_exists(name, user, host, port):
         return True
     else:
@@ -232,8 +247,9 @@ def user_list(user=None, host=None, port=None, sudo_user=None):
     '''
     ret = []
     cmd = _build_command('psql -P pager postgres -c "SELECT * FROM pg_roles"', user, host, port, sudo_user)
-
-    lines = [x for x in __salt__['cmd.run'](cmd).split("\n") if len(x.split("|")) == 13]
+    output = __salt__['cmd.run'](cmd)
+    _check_output_for_error(output)
+    lines = [x for x in output.split("\n") if len(x.split("|")) == 13]
     header = [x.strip() for x in lines[0].split("|")]
     for line in lines[1:]:
         line = [x.strip() for x in line.split("|")]
@@ -294,7 +310,9 @@ def user_create(username,
         sub_cmd = sub_cmd.replace(" WITH", "")
 
     cmd = _build_command('psql -c "%s"' % sub_cmd, user=user, host=host, port=port, sudo_user=sudo_user)
-    return __salt__['cmd.run'](cmd)
+    output = __salt__['cmd.run'](cmd)
+    _check_output_for_error(output)
+    return output
 
 
 def user_update(username,
@@ -334,7 +352,9 @@ def user_update(username,
         sub_cmd = sub_cmd.replace(" WITH", "")
 
     cmd = _build_command('psql -c "%s"' % sub_cmd, user, host, port, sudo_user)
-    return __salt__['cmd.run'](cmd)
+    output = __salt__['cmd.run'](cmd)
+    _check_output_for_error(output)
+    return output
 
 
 def user_remove(username, user=None, host=None, port=None, sudo_user=None):
@@ -352,7 +372,8 @@ def user_remove(username, user=None, host=None, port=None, sudo_user=None):
 
     # user exists, proceed
     cmd = _build_command('dropuser %s' % username)
-    __salt__['cmd.run'](cmd)
+    output = __salt__['cmd.run'](cmd)
+    _check_output_for_error(output)
     if not user_exists(username, user, host, port):
         return True
     else:
