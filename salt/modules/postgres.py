@@ -57,13 +57,13 @@ def _connection_defaults(user=None, host=None, port=None, sudo_user=None):
     if not user:
         user = __opts__.get('postgres.user') or __pillar__.get('postgres.user') or "postgres"
     if not host:
-        host = __opts__.get('postgres.host') or __pillar__.get('postgres.host') or "127.0.0.1"
+        host = __opts__.get('postgres.host') or __pillar__.get('postgres.host') or None
     if not port:
         port = __opts__.get('postgres.port') or __pillar__.get('postgres.port') or "5432"
     if not sudo_user:
         sudo_user = __opts__.get('postgres.sudo_user') or __pillar__.get('postgres.sudo_user')
 
-    return (user, host, port)
+    return (user, host, port, sudo_user)
 
 
 def _build_command(cmd, user=None, host=None, port=None, sudo_user=None):
@@ -77,6 +77,7 @@ def _build_command(cmd, user=None, host=None, port=None, sudo_user=None):
         cmd += ' -h %s' % host
     if port:
         cmd += ' -p %s' % str(port)
+    cmd += ' -w'
     if sudo_user:
         cmd = 'sudo -u %s ' + cmd
     return cmd
@@ -154,7 +155,7 @@ def db_create(name,
         log.info("DB '{0}' already exists".format(name,))
         return False
 
-    cmd_part = '-w -h %s' % name
+    cmd_part =  -h %s' % name
 
     if tablespace:
         cmd_part = "-D {0} {1}".format(tablespace, cmd_part)
@@ -206,7 +207,7 @@ def db_remove(name, user=None, host=None, port=None, sudo_user=None):
         return False
 
     # db doesnt exist, proceed
-    cmd = _build_command('dropdb -w {name}'.format(name=name), user, host, port, sudo_user)
+    cmd = _build_command('dropdb {name}'.format(name=name), user, host, port, sudo_user)
 
     __salt__['cmd.run'](cmd)
     if not db_exists(name, user, host, port):
@@ -229,7 +230,7 @@ def user_list(user=None, host=None, port=None, sudo_user=None):
         salt '*' postgres.user_list
     '''
     ret = []
-    cmd = _build_command('psql -w -P pager postgres -c "SELECT * FROM pg_roles"', user, host, port, sudo_user)
+    cmd = _build_command('psql -P pager postgres -c "SELECT * FROM pg_roles"', user, host, port, sudo_user)
 
     lines = [x for x in __salt__['cmd.run'](cmd).split("\n") if len(x.split("|")) == 13]
     header = [x.strip() for x in lines[0].split("|")]
@@ -291,7 +292,7 @@ def user_create(username,
     if sub_cmd.endswith("WITH"):
         sub_cmd = sub_cmd.replace(" WITH", "")
 
-    cmd = _build_command('psql -w -c "%s"' % sub_cmd, user=user, host=host, port=port, sudo_user=sudo_user)
+    cmd = _build_command('psql -c "%s"' % sub_cmd, user=user, host=host, port=port, sudo_user=sudo_user)
     return __salt__['cmd.run'](cmd)
 
 
@@ -331,7 +332,7 @@ def user_update(username,
     if sub_cmd.endswith("WITH"):
         sub_cmd = sub_cmd.replace(" WITH", "")
 
-    cmd = _build_command('psql -w -c "%s"' % sub_cmd, user, host, port, sudo_user)
+    cmd = _build_command('psql -c "%s"' % sub_cmd, user, host, port, sudo_user)
     return __salt__['cmd.run'](cmd)
 
 
@@ -349,7 +350,7 @@ def user_remove(username, user=None, host=None, port=None, sudo_user=None):
         return False
 
     # user exists, proceed
-    cmd = _build_command('dropuser -w %s' % username)
+    cmd = _build_command('dropuser %s' % username)
     __salt__['cmd.run'](cmd)
     if not user_exists(username, user, host, port):
         return True
